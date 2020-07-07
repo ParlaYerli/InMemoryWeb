@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using InMemoryWeb.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -27,10 +28,18 @@ namespace InMemoryWeb.Controllers
             if (!_memoryCache.TryGetValue("zaman",out string zamancache))
             {
                 MemoryCacheEntryOptions options = new MemoryCacheEntryOptions();
-                options.AbsoluteExpiration = DateTime.Now.AddSeconds(80);// cachein ömrünü belirler.Sliding ile kullanılmasının sebebi var olan cachei öldürüp güncel bilginin cachete tutulmasını sağlmaktır.
+                options.AbsoluteExpiration = DateTime.Now.AddSeconds(10);// cachein ömrünü belirler.Sliding ile kullanılmasının sebebi var olan cachei öldürüp güncel bilginin cachete tutulmasını sağlmaktır.
 
-                options.SlidingExpiration = TimeSpan.FromSeconds(10); // belirlenen saniye boyunca istek gelirse o kadar saniye daha cache ömrü uzatılır.
+               // options.SlidingExpiration = TimeSpan.FromSeconds(10); // belirlenen saniye boyunca istek gelirse o kadar saniye daha cache ömrü uzatılır.
+                options.Priority = CacheItemPriority.High; //cache belleği dolunca cachein sırayla silinmesi için öncelik belirleme olayı gerçekleştirilir.
+               
+                //memoryden data silinince hangi sebepten silindi ise onu öğrenmemizi sağlar.
+                options.RegisterPostEvictionCallback((key, value, reason, state) => {
+                    _memoryCache.Set("callback", $"{key} -> {value} => sebep: {reason}");
+                });
                 _memoryCache.Set<string>("zaman", DateTime.Now.ToString(),options);
+                Product p = new Product { Id = 1, Name = "kalem", Prica = 20 };
+                _memoryCache.Set<Product>("product:1", p);
             }
             
             return View();
@@ -44,7 +53,10 @@ namespace InMemoryWeb.Controllers
                   return DateTime.Now.ToString();
               });*/
             _memoryCache.TryGetValue("zaman", out string zamancache); // zaman adında keyin value değerini zamancache'e atayacak.
+            _memoryCache.TryGetValue("callback", out string callback);
+            ViewBag.product = _memoryCache.Get<Product>("product:1");
             ViewBag.zaman = zamancache;
+            ViewBag.callback = callback;
             return View();
         }
     }
